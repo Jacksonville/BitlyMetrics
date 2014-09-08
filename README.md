@@ -3,7 +3,7 @@ BtlyMetrics
 
 ###Introduction:
 This is a quick process I wrote to download metrics for Bitly links over the last week and create an excel spreadsheet with the click metric data.
-The [OAuth token](http://dev.bitly.com/authentication.html) is utilised for authentication, you can get this code from the bitly site.
+The [OAuth token](https://bitly.com/a/oauth_apps) is utilised for authentication, you can get this code from the bitly site.
 
 ###Requirements:
 The following python modules are required:
