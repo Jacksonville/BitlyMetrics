@@ -19,6 +19,6 @@
 	},
 	"report":{
 		"output_path":"output",
-		"output_file":"My_bitly_stats_%s.xslx"
+		"output_file":"My_bitly_stats_%s.xlsx"
 	}
 }

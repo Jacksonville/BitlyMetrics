@@ -18,4 +18,3 @@ The from date is currently defaulted to the previous Wednesday + 7, will make th
 - Convert the link data in the report to yyyy-mm-dd, it is currently epoch
 - Add formatting and resize the report columns to look nicer
 - Add additional report output types (json, html, csv)
-- Add datestamp to file output

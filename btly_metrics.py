@@ -84,7 +84,8 @@ class ReportWriter:
 		self.settings = settings
 		report_path = self.settings['output_path']
 		pathfinder(report_path)
-		self.report_name = os.path.join(os.getcwd(), report_path, self.settings['output_file'])
+		self.report_name = os.path.join(os.getcwd(), report_path, self.settings['output_file'] % (datetime.datetime.now().strftime("%Y-%m-%d")))
+
 	def write_report(self, link_data):
 		print ('Writing report...')
 		workbook = xlsxwriter.Workbook(self.report_name)
