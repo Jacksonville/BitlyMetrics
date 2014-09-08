@@ -97,7 +97,11 @@ class ReportWriter:
 		row = 1
 		for link in link_data:
 			for index in range(0, len(keys)):
-				worksheet.write(row, index, link[keys[index]])
+				if index == 0:
+					val = datetime.datetime.strftime('%Y-%m-%d %H:%M:%S',datetime.datetime.fromtimestamp(link[keys[index]]))
+				else:
+					val = link[keys[index]]
+				worksheet.write(row, index, val)
 			row+=1
 
 def main():
