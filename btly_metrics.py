@@ -2,10 +2,10 @@ import json
 import datetime
 import urllib
 import os
+import argparse
 
 from Queue import Queue
 from threading import Thread
-
 
 try:
 	import requests
@@ -22,7 +22,7 @@ except ImportError:
 	raise
 
 q = Queue(maxsize=0)
-num_threads = 30
+num_threads = 20
 
 def get_settings(module):
 	settings = json.loads(open('link_manager.json','r').read())
@@ -56,8 +56,7 @@ class BitlyAPI:
 		if res.get('status_code') == 200:
 			return res['data']['link_history']
 
-	def get_links(self):
-		report_start = int((datetime.date.today() - datetime.timedelta(days=((datetime.date.today().weekday() - 2) % 7) + 7)).strftime("%s")) 
+	def get_links(self, report_start):
 		report_end = int(datetime.datetime.now().strftime('%s')) 
 		self.linklist = []
 		self.link_data = []
@@ -114,8 +113,10 @@ class ReportWriter:
 		boldfmt = workbook.add_format({'bold': True})
 		datefmt = workbook.add_format({'num_format': 'yyyy/mm/dd hh:mm'})
 		numfmt = workbook.add_format({'num_format': '# ##0'})
+		colwidths = {}
 		for index in range(0, len(headings)):
 			worksheet.write(0, index, headings[index], boldfmt)
+			colwidths[keys[index]] = [len(headings[index])]
 		row = 1
 		for link in link_data:
 			worksheet.write_string(row, 0, datetime.datetime.fromtimestamp(link[keys[0]]).strftime('%Y-%m-%d %H:%M:%S'), datefmt)
@@ -123,14 +124,38 @@ class ReportWriter:
 			worksheet.write_number(row, 2, link[keys[2]], numfmt)
 			worksheet.write_url(row, 3, link[keys[3]])
 			worksheet.write_url(row, 4, link[keys[4]])
+			for index in range(0, len(keys)):
+				if index == 0:
+					colwidths[keys[index]].append(len(datetime.datetime.fromtimestamp(link[keys[0]]).strftime('%Y-%m-%d %H:%M:%S')))
+				else:
+					colwidths[keys[index]].append(len(unicode(link[keys[index]])))
 			row+=1
+		print ("%s rows written" % len(link_data))
+		col = 0
+		for key in keys:
+			print ("Resizing column %s width to %s" % (key, max(colwidths[key])))
+			worksheet.set_column(col, col, max(colwidths[key]))
+			col+=1
+		print ('Freezing top row')
+		worksheet.freeze_panes(1, 0)
+		if 'tab_colour' in self.settings:
+			print ('Setting tab colour')
+			worksheet.set_tab_color(self.settings['tab_colour'])
 
-def main():
+def main(report_start):
 	bt = BitlyAPI(get_settings('api'))
-	bt.get_links()
+	bt.get_links(report_start)
 	bt.update_links_with_metrics()
 	rp = ReportWriter(get_settings('report'))
 	rp.write_report(bt.links)
 
 if __name__ == '__main__':
-	main()
+	parser = argparse.ArgumentParser(description='Get stats on bitly links')
+	parser.add_argument('--report_start', dest='report_start', default=(datetime.date.today() - datetime.timedelta(days=((datetime.date.today().weekday() - 2) % 7) + 7)) ,
+	                   help='Start date for the report - yyyy-mm-dd')
+	args = parser.parse_args()
+	if type(args.report_start) == str:
+		report_start = 	int(datetime.datetime.strptime(args.report_start, '%Y-%m-%d').strftime("%s"))
+	else:
+		report_start = int(args.report_start.strftime("%s"))
+	main(report_start)
