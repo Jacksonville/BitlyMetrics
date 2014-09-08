@@ -1,0 +1,24 @@
+{
+	"api":{
+		"oauth_token":"*************************************",
+		"base_url":"https://api-ssl.bitly.com",
+		"user_history":{
+			"root":"/v3/user/link_history",
+			"uri":{
+				"format":"json"
+			}
+		},
+		"link_metrics":{
+			"root":"/v3/link/clicks",
+			"uri":{
+				"unit":"day",
+				"units":"-1",
+				"format":"json"
+			}
+		}
+	},
+	"report":{
+		"output_path":"output",
+		"output_file":"My_bitly_stats_%s.xslx"
+	}
+}
