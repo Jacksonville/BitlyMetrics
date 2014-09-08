@@ -3,17 +3,26 @@ import datetime
 import urllib
 import os
 
+from Queue import Queue
+from threading import Thread
+
+
 try:
 	import requests
 except ImportError:
 	print ('Python requests module required, get it from the cheese shop (https://pypi.python.org/pypi/requests/) or run:')
 	print ('pip install requests')
+	raise
 
 try:
 	import xlsxwriter
 except ImportError:
 	print ('Python xlsxwriter module required, get it from the cheese shop (https://pypi.python.org/pypi/XlsxWriter) or run:')
 	print ('pip install xlsxwriter')
+	raise
+
+q = Queue(maxsize=0)
+num_threads = 30
 
 def get_settings(module):
 	settings = json.loads(open('link_manager.json','r').read())
@@ -29,6 +38,7 @@ def pathfinder(path):
 class BitlyAPI:
 	def __init__(self, settings):
 		self.settings = settings
+		self.links = []
 
 	def api_get_json(self, url):
 		r = requests.get(url)
@@ -63,21 +73,30 @@ class BitlyAPI:
 					print ('Skipping %s as already in list' % link['link'])
 			report_end = res[-1]['created_at']
 
-	def get_link_metrics(self, link):
-		uri = self.settings['link_metrics']['uri']
-		uri['access_token'] = self.settings['oauth_token']
-		uri['link'] = link
-		link_url = self.settings['base_url']\
-				   +self.settings['link_metrics']['root']+'?'\
-				   +urllib.urlencode(uri)	   
-		res = self.api_get_json(link_url)
-		if res.get('status_code') == 200:
-			return res['data']['link_clicks']
+	def get_link_metrics(self, queue):
+		while True:
+			link = queue.get()
+			print ('Updating click metrics for %s' % link['link'])
+			uri = self.settings['link_metrics']['uri']
+			uri['access_token'] = self.settings['oauth_token']
+			uri['link'] = link['link']
+			link_url = self.settings['base_url']\
+					   +self.settings['link_metrics']['root']+'?'\
+					   +urllib.urlencode(uri)
+			res = self.api_get_json(link_url)
+			if res.get('status_code') == 200:
+				link['link_clicks'] = res['data']['link_clicks']
+				self.links.append(link)
+			queue.task_done()
 
 	def update_links_with_metrics(self):
+		for i in range(num_threads):
+			worker = Thread(target=self.get_link_metrics, args=(q,))
+			worker.setDaemon(True)
+			worker.start()
 		for link in self.link_data:
-			print ('Updating click metrics for %s' % link['link'])
-			link['link_clicks'] = self.get_link_metrics(link['link'])
+			q.put(link)
+		q.join()
 
 class ReportWriter:
 	def __init__(self, settings):
@@ -92,16 +111,18 @@ class ReportWriter:
 		worksheet = workbook.add_worksheet('Bitly Click Data')
 		keys = ['created_at', 'title', 'link_clicks', 'link', 'long_url']
 		headings = ['Create Time', 'Title', 'Number of clicks', 'Short URL', 'Long URL']
+		boldfmt = workbook.add_format({'bold': True})
+		datefmt = workbook.add_format({'num_format': 'yyyy/mm/dd hh:mm'})
+		numfmt = workbook.add_format({'num_format': '# ##0'})
 		for index in range(0, len(headings)):
-			worksheet.write(0, index, headings[index])
+			worksheet.write(0, index, headings[index], boldfmt)
 		row = 1
 		for link in link_data:
-			for index in range(0, len(keys)):
-				if index == 0:
-					val = datetime.datetime.fromtimestamp(link[keys[index]]).strftime('%Y-%m-%d %H:%M:%S')
-				else:
-					val = link[keys[index]]
-				worksheet.write(row, index, val)
+			worksheet.write_string(row, 0, datetime.datetime.fromtimestamp(link[keys[0]]).strftime('%Y-%m-%d %H:%M:%S'), datefmt)
+			worksheet.write_string(row, 1, link[keys[1]])
+			worksheet.write_number(row, 2, link[keys[2]], numfmt)
+			worksheet.write_url(row, 3, link[keys[3]])
+			worksheet.write_url(row, 4, link[keys[4]])
 			row+=1
 
 def main():
@@ -109,7 +130,7 @@ def main():
 	bt.get_links()
 	bt.update_links_with_metrics()
 	rp = ReportWriter(get_settings('report'))
-	rp.write_report(bt.link_data)
+	rp.write_report(bt.links)
 
 if __name__ == '__main__':
 	main()
