@@ -156,9 +156,10 @@ def main(report_start):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Get stats on bitly links')
-    parser.add_argument('--report_start', dest='report_start', default=(datetime.date.today() - datetime.timedelta(days=((
-                                                                                        datetime.date.today().weekday() - 2) % 7) + 7)),
-                       help='Start date for the report - yyyy-mm-dd')
+    parser.add_argument('--report_start',
+                        dest='report_start',
+                        default=(datetime.date.today() - datetime.timedelta(days=((datetime.date.today().weekday() - 2) % 7) + 7)),
+                        help='Start date for the report - yyyy-mm-dd')
     args = parser.parse_args()
     if type(args.report_start) == str:
         report_start = int(datetime.datetime.strptime(args.report_start, '%Y-%m-%d').strftime("%s"))
