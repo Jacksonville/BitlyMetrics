@@ -24,9 +24,10 @@ except ImportError:
 q = Queue(maxsize=0)
 num_threads = 20
 
+xstr = lambda s: s or ""
 
 def get_settings(module):
-    settings = json.loads(open('link_manager.json', 'r').read())
+    settings = json.loads(open(os.path.join(os.path.dirname(__file__), 'link_manager.json'), 'r').read())
     return settings.get(module)
 
 
@@ -124,7 +125,7 @@ class ReportWriter:
         row = 1
         for link in link_data:
             worksheet.write_string(row, 0, datetime.datetime.fromtimestamp(link[keys[0]]).strftime('%Y-%m-%d %H:%M:%S'), datefmt)
-            worksheet.write_string(row, 1, link[keys[1]])
+            worksheet.write_string(row, 1, xstr(link[keys[1]]))
             worksheet.write_number(row, 2, link[keys[2]], numfmt)
             worksheet.write_url(row, 3, link[keys[3]])
             worksheet.write_url(row, 4, link[keys[4]])
