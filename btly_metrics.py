@@ -107,7 +107,7 @@ class ReportWriter:
         self.settings = settings
         report_path = self.settings['output_path']
         pathfinder(report_path)
-        self.report_name = os.path.join(os.getcwd(), report_path, self.settings['output_file'] % (datetime.datetime.now().strftime("%Y-%m-%d")))
+        self.report_name = os.path.join(os.path.split(os.path.abspath(__file__))[0], report_path, self.settings['output_file'] % (datetime.datetime.now().strftime("%Y-%m-%d")))
 
     def write_report(self, link_data):
         print ('Writing report...')
@@ -154,6 +154,7 @@ def main(report_start):
     bt.update_links_with_metrics()
     rp = ReportWriter(get_settings('report'))
     rp.write_report(bt.links)
+    return rp.report_name
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Get stats on bitly links')
