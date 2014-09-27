@@ -3,6 +3,7 @@ import datetime
 import urllib
 import os
 import argparse
+from time import sleep
 
 from Queue import Queue
 from threading import Thread
@@ -43,6 +44,7 @@ class BitlyAPI:
     def __init__(self, settings):
         self.settings = settings
         self.links = []
+        self.done = False
 
     def api_get_json(self, url):
         r = requests.get(url)
@@ -90,16 +92,26 @@ class BitlyAPI:
             if res.get('status_code') == 200:
                 link['link_clicks'] = res['data']['link_clicks']
                 self.links.append(link)
+            if link['link'] == self.last_link:
+                self.done = True
             queue.task_done()
 
     def update_links_with_metrics(self):
+        threads = {}
         for i in range(num_threads):
-            worker = Thread(target=self.get_link_metrics, args=(q,))
-            worker.setDaemon(True)
-            worker.start()
+            threads[i] = Thread(target=self.get_link_metrics, args=(q,))
+            threads[i].setDaemon(True)
+            threads[i].start()
+        self.last_link = self.link_data[-1]['link']
         for link in self.link_data:
             q.put(link)
         q.join()
+        while True:
+            #Wait for threads, multi-threaded web app is too quick...
+            if self.done:
+                sleep(5)
+                break
+            sleep(5)
 
 
 class ReportWriter:
