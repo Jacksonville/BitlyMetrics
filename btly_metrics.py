@@ -22,9 +22,6 @@ except ImportError:
     print ('pip install xlsxwriter')
     raise
 
-q = Queue(maxsize=0)
-num_threads = 20
-
 xstr = lambda s: s or ""
 
 def get_settings(module):
@@ -45,6 +42,7 @@ class BitlyAPI:
         self.settings = settings
         self.links = []
         self.done = False
+        self.num_threads = 35
 
     def api_get_json(self, url):
         r = requests.get(url)
@@ -70,18 +68,21 @@ class BitlyAPI:
         while len(res) > 1:
             res = self.get_link_batch(report_start, report_end)
             print (('Loaded %s links' % len(res)))
-            for link in res:
-                if link['link'] not in self.linklist:
-                    self.link_data.append(link)
-                    self.linklist.append(link['link'])
-                else:
-                    print (('Skipping %s as already in list' % link['link']))
-            report_end = res[-1]['created_at']
+            if len(res)>0:
+                for link in res:
+                    if link['link'] not in self.linklist:
+                        self.link_data.append(link)
+                        self.linklist.append(link['link'])
+                    else:
+                        print (('Skipping %s as already in list' % link['link']))
+                report_end = res[-1]['created_at']
+            else:
+                print (('No links returned in this batch'))
 
-    def get_link_metrics(self, queue):
-        while True:
+    def get_link_metrics(self, queue, thread_id):
+        while queue.qsize() > 0:
             link = queue.get()
-            print (('Updating click metrics for %s' % link['link']))
+            print (('Thread-{0} Updating click metrics for {1}'.format(thread_id,link['link'])))
             uri = self.settings['link_metrics']['uri']
             uri['access_token'] = self.settings['oauth_token']
             uri['link'] = link['link']
@@ -92,27 +93,20 @@ class BitlyAPI:
             if res.get('status_code') == 200:
                 link['link_clicks'] = res['data']['link_clicks']
                 self.links.append(link)
-            if link['link'] == self.last_link:
-                self.done = True
-            queue.task_done()
-
+            
     def update_links_with_metrics(self):
-        threads = {}
-        for i in range(num_threads):
-            threads[i] = Thread(target=self.get_link_metrics, args=(q,))
-            threads[i].setDaemon(True)
-            threads[i].start()
-        self.last_link = self.link_data[-1]['link']
+        q = Queue()
         for link in self.link_data:
             q.put(link)
+            q.task_done()
+        for i in range(self.num_threads):
+            x = Thread(target=self.get_link_metrics, args=(q, i,))
+            x.setDaemon(True)
+            x.start()
+        queue_length = len(self.link_data)
         q.join()
-        while True:
-            #Wait for threads, multi-threaded web app is too quick...
-            if self.done:
-                sleep(5)
-                break
-            sleep(5)
-
+        while q.qsize() > 0:
+            sleep(1)
 
 class ReportWriter:
     def __init__(self, settings):
